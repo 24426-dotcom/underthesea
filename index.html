@@ -3,170 +3,84 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>SeaNav AI - 선박 항해 어시스턴트 플랫폼</title>
-    <!-- 디자인 스타일링을 위한 Tailwind CSS -->
+    <title>SeaNav AI - 선박 항해 플랫폼</title>
     <script src="https://cdn.jsdelivr.net/npm/@tailwindcss/browser@4"></script>
-    <!-- 선박 및 기능 아이콘을 위한 FontAwesome -->
     <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
-    <style>
-        body {
-            background-color: #0b132b; /* 깊은 바다 느낌의 딥블루 테마 */
-            color: #f4f5f6;
-        }
-    </style>
+    <style>body { background-color: #0b132b; color: #f4f5f6; }</style>
 </head>
 <body class="min-h-screen font-sans antialiased">
 
-    <!-- 네비게이션 바 -->
     <nav class="bg-[#1c2541] border-b border-[#3a506b] px-6 py-4 flex justify-between items-center sticky top-0 z-50">
         <div class="flex items-center space-x-3">
             <i class="fa-solid fa-anchor text-cyan-400 text-2xl"></i>
             <span class="text-xl font-bold tracking-wider text-white">SeaNav <span class="text-cyan-400">AI</span></span>
         </div>
-        <div id="auth-status" class="flex items-center space-x-4">
-            <button id="btn-logout" class="hidden bg-red-600 hover:bg-red-700 text-white px-4 py-2 rounded-lg text-sm font-medium transition">
-                <i class="fa-solid fa-right-from-bracket mr-1"></i> 로그아웃
-            </button>
-        </div>
+        <button id="btn-logout" class="hidden bg-red-600 hover:bg-red-700 text-white px-4 py-2 rounded-lg text-sm font-medium transition">로그아웃</button>
     </nav>
 
-    <!-- 메인 레이아웃 구역 -->
     <main class="max-w-7xl mx-auto p-4 md:p-8 grid grid-cols-1 lg:grid-cols-3 gap-8">
         
-        <!-- 왼쪽 열: 회원인증 및 디지털 항해일지 (FIREBASE) -->
         <div class="space-y-6 lg:col-span-1">
-            
-            <!-- 1. Firebase Authentication 로그인/회원가입 카드 -->
-            <div id="auth-card" class="bg-[#1c2541] rounded-xl p-6 shadow-xl border border-[#3a506b]">
-                <h2 class="text-lg font-semibold mb-4 text-cyan-300 flex items-center">
-                    <i class="fa-solid fa-user-shield mr-2"></i> 선원 인증 (Authentication)
-                </h2>
-                
-                <!-- 로그아웃 상태일 때 보이는 폼 -->
-                <div id="login-form-container" class="space-y-4">
-                    <div>
-                        <label class="block text-xs font-medium text-gray-400 mb-1">이메일 주소</label>
-                        <input type="email" id="auth-email" class="w-full bg-[#0b132b] border border-[#3a506b] rounded-lg px-3 py-2 text-white text-sm focus:outline-none focus:border-cyan-400" placeholder="captain@seanav.com">
-                    </div>
-                    <div>
-                        <label class="block text-xs font-medium text-gray-400 mb-1">비밀번호</label>
-                        <input type="password" id="auth-password" class="w-full bg-[#0b132b] border border-[#3a506b] rounded-lg px-3 py-2 text-white text-sm focus:outline-none focus:border-cyan-400" placeholder="••••••••">
-                    </div>
-                    <div class="flex space-x-2 pt-2">
-                        <button id="btn-login" class="flex-1 bg-cyan-600 hover:bg-cyan-500 text-white font-medium py-2 rounded-lg text-sm transition">로그인</button>
-                        <button id="btn-signup" class="flex-1 bg-transparent hover:bg-[#3a506b] text-cyan-400 border border-cyan-500/30 font-medium py-2 rounded-lg text-sm transition">회원가입</button>
-                    </div>
-                </div>
-
-                <!-- 로그인 성공 시 보이는 상태 화면 -->
-                <div id="logged-in-container" class="hidden text-center py-4 space-y-2">
-                    <div class="w-16 h-16 bg-cyan-500/10 rounded-full flex items-center justify-center mx-auto mb-2 border border-cyan-500/30">
-                        <i class="fa-solid fa-id-badge text-2xl text-cyan-400"></i>
-                    </div>
-                    <p class="text-sm font-medium text-white">항해사님, 환영합니다!</p>
-                    <p id="current-user-email" class="text-xs text-gray-400 break-all"></p>
-                    <p class="text-xs text-emerald-400 bg-emerald-500/10 py-1 px-2 rounded-full inline-block mt-2">
-                        <i class="fa-solid fa-circle-check mr-1"></i> 시스템 온라인
-                    </p>
-                </div>
-            </div>
-
-            <!-- 2. Firebase Firestore 실시간 데이터 연동 카드 -->
             <div class="bg-[#1c2541] rounded-xl p-6 shadow-xl border border-[#3a506b]">
-                <h2 class="text-lg font-semibold mb-4 text-cyan-300 flex items-center">
-                    <i class="fa-solid fa-book-atlas mr-2"></i> 디지털 항해 일지 (Firestore)
-                </h2>
-                
-                <!-- 일지 작성 폼 -->
-                <div class="space-y-3 mb-6">
-                    <input type="text" id="log-vessel" class="w-full bg-[#0b132b] border border-[#3a506b] rounded-lg px-3 py-2 text-white text-sm focus:outline-none focus:border-cyan-400" placeholder="선박명 (예: 세아호)">
-                    <input type="text" id="log-route" class="w-full bg-[#0b132b] border border-[#3a506b] rounded-lg px-3 py-2 text-white text-sm focus:outline-none focus:border-cyan-400" placeholder="운항 경로 (예: 부산 -> LA)">
-                    <textarea id="log-note" rows="2" class="w-full bg-[#0b132b] border border-[#3a506b] rounded-lg px-3 py-2 text-white text-sm resize-none focus:outline-none focus:border-cyan-400" placeholder="특이사항 및 실시간 선박 정비 점검 기록"></textarea>
-                    <button id="btn-save-log" class="w-full bg-emerald-600 hover:bg-emerald-500 text-white font-medium py-2 rounded-lg text-sm transition flex items-center justify-center">
-                        <i class="fa-solid fa-cloud-arrow-up mr-2"></i>일지 원격 데이터 저장
-                    </button>
-                </div>
-
-                <!-- 실시간 저장 목록 출력 공간 -->
-                <div class="border-t border-[#3a506b] pt-4">
-                    <h3 class="text-xs font-semibold text-gray-400 uppercase tracking-wider mb-3">클라우드 동기화 목록</h3>
-                    <div id="log-list" class="space-y-3 max-h-64 overflow-y-auto pr-1">
-                        <p class="text-xs text-gray-500 text-center py-4">로그인 후 항해 일지를 원격 저장하거나 불러올 수 있습니다.</p>
+                <h2 class="text-lg font-semibold mb-4 text-cyan-300 flex items-center"><i class="fa-solid fa-user-shield mr-2"></i> 선원 인증 (Auth)</h2>
+                <div id="login-form-container" class="space-y-4">
+                    <input type="email" id="auth-email" class="w-full bg-[#0b132b] border border-[#3a506b] rounded-lg px-3 py-2 text-white text-sm focus:outline-none focus:border-cyan-400" placeholder="이메일">
+                    <input type="password" id="auth-password" class="w-full bg-[#0b132b] border border-[#3a506b] rounded-lg px-3 py-2 text-white text-sm focus:outline-none focus:border-cyan-400" placeholder="비밀번호">
+                    <div class="flex space-x-2">
+                        <button id="btn-login" class="flex-1 bg-cyan-600 text-white py-2 rounded-lg text-sm transition">로그인</button>
+                        <button id="btn-signup" class="flex-1 border border-cyan-500/30 text-cyan-400 py-2 rounded-lg text-sm transition">회원가입</button>
                     </div>
+                </div>
+                <div id="logged-in-container" class="hidden text-center py-4">
+                    <p class="text-sm font-medium text-white mb-1">항해사님 환영합니다!</p>
+                    <p id="current-user-email" class="text-xs text-gray-400 break-all"></p>
                 </div>
             </div>
 
+            <div class="bg-[#1c2541] rounded-xl p-6 shadow-xl border border-[#3a506b]">
+                <h2 class="text-lg font-semibold mb-4 text-cyan-300 flex items-center"><i class="fa-solid fa-book-atlas mr-2"></i> 선박 항해 일지 (Firestore)</h2>
+                <div class="space-y-3 mb-6">
+                    <input type="text" id="log-vessel" class="w-full bg-[#0b132b] border border-[#3a506b] rounded-lg px-3 py-2 text-white text-sm focus:outline-none focus:border-cyan-400" placeholder="선박명">
+                    <input type="text" id="log-route" class="w-full bg-[#0b132b] border border-[#3a506b] rounded-lg px-3 py-2 text-white text-sm focus:outline-none focus:border-cyan-400" placeholder="운항 경로">
+                    <textarea id="log-note" rows="2" class="w-full bg-[#0b132b] border border-[#3a506b] rounded-lg px-3 py-2 text-white text-sm resize-none focus:outline-none focus:border-cyan-400" placeholder="선박 점검 및 특이사항 기록"></textarea>
+                    <button id="btn-save-log" class="w-full bg-emerald-600 text-white py-2 rounded-lg text-sm font-medium transition">클라우드 일지 저장</button>
+                </div>
+                <div class="border-t border-[#3a506b] pt-4">
+                    <div id="log-list" class="space-y-3 max-h-64 overflow-y-auto text-xs text-gray-500 text-center">로그인 후 조회 가능합니다.</div>
+                </div>
+            </div>
         </div>
 
-        <!-- 오른쪽 열: AI 생성형 비서 인터페이스 (APPS SCRIPT PROXY + TTS) -->
         <div class="lg:col-span-2 space-y-6">
-            
-            <!-- 소개 문구 -->
             <div class="bg-[#1c2541] rounded-xl p-6 shadow-xl border border-[#3a506b]">
-                <h1 class="text-2xl font-extrabold text-white mb-2 tracking-tight">AI 1등 항해사 브리핑룸 <span class="text-xs font-normal text-emerald-400 px-2 py-0.5 bg-emerald-500/10 rounded ml-2 border border-emerald-500/20">Apps Script 보안 연결</span></h1>
-                <p class="text-gray-400 text-sm leading-relaxed">
-                    선박 지식, 해상 기상 악화 시 조치, 선박 정비 팁 등을 물어보세요. Google Apps Script 게이트웨이를 거쳐 안전하게 통신합니다. 답변 우측 하단의 <strong>TTS 버튼</strong>을 통해 음성 청취가 가능합니다.
-                </p>
+                <h1 class="text-2xl font-extrabold text-white mb-1">AI 선장 브리핑 시스템</h1>
+                <p class="text-gray-400 text-sm">구글 앱스크립트 보안 게이트웨이를 경유하여 AI 답변을 안전하게 수신합니다.</p>
             </div>
 
-            <!-- 대화창 인터페이스 -->
-            <div class="bg-[#1c2541] rounded-xl shadow-xl border border-[#3a506b] flex flex-col h-[520px]">
-                <!-- 상단 헤더 -->
+            <div class="bg-[#1c2541] rounded-xl shadow-xl border border-[#3a506b] flex flex-col h-[500px]">
                 <div class="px-6 py-4 border-b border-[#3a506b] flex justify-between items-center bg-[#151c33] rounded-t-xl">
-                    <div class="flex items-center space-x-2">
-                        <span class="w-2 h-2 bg-emerald-500 rounded-full animate-pulse"></span>
-                        <span class="text-sm font-semibold text-gray-300">위성 프록시 통신 채널 활성화</span>
-                    </div>
-                    <button id="btn-stop-tts" class="text-xs bg-transparent hover:bg-red-500/10 text-red-400 border border-red-500/20 px-2 py-1 rounded transition">
-                        <i class="fa-solid fa-volume-xmark"></i> 음성 중지
-                    </button>
+                    <span class="text-sm font-semibold text-gray-300">보안 통신 채널 활성화</span>
+                    <button id="btn-stop-tts" class="text-xs text-red-400 border border-red-500/20 px-2 py-1 rounded">음성 중지</button>
                 </div>
-
-                <!-- 메시지 스크린 -->
-                <div id="chat-screen" class="flex-1 p-6 overflow-y-auto space-y-4 bg-[#111936]">
-                    <!-- 기본 환영 메시지 -->
-                    <div class="flex space-x-3 items-start max-w-[85%]">
-                        <div class="w-8 h-8 rounded-full bg-cyan-600 flex items-center justify-center text-white shrink-0">
-                            <i class="fa-solid fa-robot text-xs"></i>
-                        </div>
-                        <div class="bg-[#1c2541] text-gray-100 rounded-2xl rounded-tl-none p-4 text-sm border border-[#3a506b]">
-                            반갑습니다. 보안 게이트웨이를 경유하는 AI 일등항해사입니다. 선박 운항이나 비상 상황 대응 지식에 대해 질문하십시오.
-                        </div>
-                    </div>
-                </div>
-
-                <!-- 하단 질문 입력란 -->
-                <div class="p-4 border-t border-[#3a506b] bg-[#151c33] rounded-b-xl">
-                    <div class="flex space-x-2">
-                        <input type="text" id="ai-input" class="flex-1 bg-[#0b132b] border border-[#3a506b] rounded-xl px-4 py-3 text-white placeholder-gray-500 focus:outline-none focus:border-cyan-400 text-sm shadow-inner" placeholder="예시: 대형 컨테이너선이 황천(Bad Weather) 항해 시 주의해야 할 현상은?">
-                        <button id="btn-send-ai" class="bg-cyan-600 hover:bg-cyan-500 text-white px-5 py-3 rounded-xl transition flex items-center justify-center font-medium">
-                            <i class="fa-solid fa-paper-plane mr-2"></i> 전송
-                        </button>
-                    </div>
+                <div id="chat-screen" class="flex-1 p-6 overflow-y-auto space-y-4 bg-[#111936]"></div>
+                <div class="p-4 border-t border-[#3a506b] bg-[#151c33] rounded-b-xl flex space-x-2">
+                    <input type="text" id="ai-input" class="flex-1 bg-[#0b132b] border border-[#3a506b] rounded-xl px-4 py-3 text-white text-sm focus:outline-none focus:border-cyan-400" placeholder="선박 관련 질문을 입력하세요...">
+                    <button id="btn-send-ai" class="bg-cyan-600 text-white px-5 py-3 rounded-xl font-medium transition">전송</button>
                 </div>
             </div>
-
         </div>
     </main>
 
-    <footer class="text-center py-8 text-xs text-gray-500 border-t border-[#1c2541] mt-12 bg-[#080d1e]">
-        <p>© 2026 SeaNav AI Assistant Platform. Google Apps Script Proxy 버전</p>
-    </footer>
-
-    <!-- ========================================================================= -->
-    <!-- 자바스크립트 및 핵심 로직 스크립트 -->
-    <!-- ========================================================================= -->
     <script type="module">
-        // Firebase CDN 라이브러리 로드
         import { initializeApp } from "https://www.gstatic.com/firebasejs/10.8.0/firebase-app.js";
         import { getAuth, createUserWithEmailAndPassword, signInWithEmailAndPassword, signOut, onAuthStateChanged } from "https://www.gstatic.com/firebasejs/10.8.0/firebase-auth.js";
         import { getFirestore, collection, addDoc, query, where, orderBy, onSnapshot } from "https://www.gstatic.com/firebasejs/10.8.0/firebase-firestore.js";
 
         // -------------------------------------------------------------------------
-        // [⚠️ 필수 변경사항] 본인의 Firebase 대시보드 프로젝트 설정값을 붙여넣으세요!
+        // [⚠️ 설정] 본인의 Firebase 웹 앱 SDK 구성 요소를 가입 후 입력하세요.
         // -------------------------------------------------------------------------
         const firebaseConfig = {
-            apiKey: "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",
+            apiKey: "AIzaSyBLnhtOe0kYSacOhRKoqSbrKknfPFBHg4g",
             authDomain: "letsgokorea-43820.firebaseapp.com",
             projectId: "letsgokorea-43820",
             storageBucket: "letsgokorea-43820.firebasestorage.app",
@@ -175,11 +89,10 @@
         };
 
         // -------------------------------------------------------------------------
-        // [⚠️ 필수 변경사항] 1단계에서 배포한 구글 앱스크립트(Apps Script) 배포 URL을 입력하세요!
+        // [⚠️ 설정] 1단계에서 획득한 Google Apps Script 배포 URL 주소를 붙여넣으세요.
         // -------------------------------------------------------------------------
-        const APPS_SCRIPT_URL = "https://script.google.com/macros/s/AKfycbxXFIr4oVKBp5f8NU3res96UjrXlzaOpIDLSv96uUzajRoNpwYNmbcbogWDrNcFqA6AIQ/exec"; 
+        const APPS_SCRIPT_URL = "https://script.google.com/macros/s/AKfycbwozmSBcbq9ZIVCyhqGL1LiCi4j9OdI7QI3frSIOEcGtESk4WLE6srhe-tAl7R-TH_0eg/exec";
 
-        // 파이어베이스 초기화
         const app = initializeApp(firebaseConfig);
         const auth = getAuth(app);
         const db = getFirestore(app);
@@ -187,7 +100,7 @@
         let currentUser = null;
         let unsubscribeLogs = null;
 
-        // DOM 요소 가져오기
+        // DOM 매핑
         const authEmailInput = document.getElementById('auth-email');
         const authPasswordInput = document.getElementById('auth-password');
         const btnLogin = document.getElementById('btn-login');
@@ -196,21 +109,17 @@
         const loginFormContainer = document.getElementById('login-form-container');
         const loggedInContainer = document.getElementById('logged-in-container');
         const currentUserEmailText = document.getElementById('current-user-email');
-        
         const logVessel = document.getElementById('log-vessel');
         const logRoute = document.getElementById('log-route');
         const logNote = document.getElementById('log-note');
         const btnSaveLog = document.getElementById('btn-save-log');
         const logList = document.getElementById('log-list');
-
         const aiInput = document.getElementById('ai-input');
         const btnSendAi = document.getElementById('btn-send-ai');
         const chatScreen = document.getElementById('chat-screen');
         const btnStopTts = document.getElementById('btn-stop-tts');
 
-        // =========================================================================
-        // 기능 1: FIREBASE AUTHENTICATION (선원 인증 처리)
-        // =========================================================================
+        // [인증] 상태 변화 체크
         onAuthStateChanged(auth, (user) => {
             if (user) {
                 currentUser = user;
@@ -224,192 +133,128 @@
                 loginFormContainer.classList.remove('hidden');
                 loggedInContainer.classList.add('hidden');
                 btnLogout.classList.add('hidden');
-                currentUserEmailText.textContent = '';
                 if (unsubscribeLogs) { unsubscribeLogs(); unsubscribeLogs = null; }
-                logList.innerHTML = `<p class="text-xs text-gray-500 text-center py-4">로그인 후 항해 일지를 불러오거나 기록할 수 있습니다.</p>`;
+                logList.innerHTML = "로그인 후 조회 가능합니다.";
             }
         });
 
         btnSignup.addEventListener('click', async () => {
-            const email = authEmailInput.value.trim();
-            const password = authPasswordInput.value.trim();
-            if(!email || !password) return alert('이메일과 비밀번호를 입력해주세요.');
             try {
-                await createUserWithEmailAndPassword(auth, email, password);
-                alert('신규 항해사 계정 생성이 완료되었습니다.');
-            } catch (err) { alert(`인증 생성 실패: ${err.message}`); }
+                await createUserWithEmailAndPassword(auth, authEmailInput.value.trim(), authPasswordInput.value.trim());
+                alert('계정 생성 완료!');
+            } catch(e) { alert(e.message); }
         });
 
         btnLogin.addEventListener('click', async () => {
-            const email = authEmailInput.value.trim();
-            const password = authPasswordInput.value.trim();
-            if(!email || !password) return alert('이메일과 비밀번호를 입력해주세요.');
             try {
-                await signInWithEmailAndPassword(auth, email, password);
-                alert('로그인에 성공했습니다. 안전 운항하십시오.');
-            } catch (err) { alert(`로그인 실패: ${err.message}`); }
+                await signInWithEmailAndPassword(auth, authEmailInput.value.trim(), authPasswordInput.value.trim());
+            } catch(e) { alert(e.message); }
         });
 
-        btnLogout.addEventListener('click', async () => {
-            try { await signOut(auth); alert('정상적으로 로그아웃 되었습니다.'); } catch (err) { console.error(err); }
-        });
+        btnLogout.addEventListener('click', () => signOut(auth));
 
-
-        // =========================================================================
-        // 기능 2: FIREBASE FIRESTORE DATA 연동
-        // =========================================================================
+        // [데이터] 저장 및 실시간 리스너
         btnSaveLog.addEventListener('click', async () => {
-            if (!currentUser) return alert('항해 일지를 저장하려면 로그인이 필요합니다.');
-            const vessel = logVessel.value.trim();
-            const route = logRoute.value.trim();
-            const note = logNote.value.trim();
-
-            if (!vessel || !route || !note) return alert('모든 칸을 입력해 주십시오.');
-
+            if(!currentUser) return alert('로그인이 필요합니다.');
             try {
                 await addDoc(collection(db, "voyage_logs"), {
                     userId: currentUser.uid,
-                    vesselName: vessel,
-                    routePath: route,
-                    specialNote: note,
+                    vesselName: logVessel.value.trim(),
+                    routePath: logRoute.value.trim(),
+                    specialNote: logNote.value.trim(),
                     createdAt: Date.now()
                 });
                 logVessel.value = ''; logRoute.value = ''; logNote.value = '';
-                alert('성공적으로 파이어베이스 클라우드 데이터베이스에 연동되었습니다.');
-            } catch (err) { alert("기록 데이터 저장 실패: " + err.message); }
+            } catch(e) { alert(e.message); }
         });
 
         function listenToVoyageLogs(userId) {
-            const logsQuery = query(collection(db, "voyage_logs"), where("userId", "==", userId), orderBy("createdAt", "desc"));
-            unsubscribeLogs = onSnapshot(logsQuery, (snapshot) => {
+            const q = query(collection(db, "voyage_logs"), where("userId", "==", userId), orderBy("createdAt", "desc"));
+            unsubscribeLogs = onSnapshot(q, (snapshot) => {
                 logList.innerHTML = '';
-                if (snapshot.empty) {
-                    logList.innerHTML = `<p class="text-xs text-gray-400 text-center py-4">첫 번째 선박 항해 일지를 기록해보세요!</p>`;
-                    return;
-                }
+                if(snapshot.empty) return logList.innerHTML = "기록이 없습니다.";
                 snapshot.forEach((doc) => {
-                    const data = doc.data();
-                    const logDate = new Date(data.createdAt).toLocaleString('ko-KR', { month: 'short', day: 'numeric', hour: '2-digit', minute:'2-digit' });
-                    const item = document.createElement('div');
-                    item.className = "bg-[#0b132b] p-3 rounded-lg border border-[#2c3d52] text-xs space-y-1";
-                    item.innerHTML = `
-                        <div class="flex justify-between font-bold text-cyan-400">
-                            <span><i class="fa-solid fa-ship mr-1"></i> ${escapeHtml(data.vesselName)}</span>
-                            <span class="text-[10px] text-gray-500 font-normal">${logDate}</span>
-                        </div>
-                        <div class="text-gray-300"><i class="fa-solid fa-route mr-1 text-gray-500"></i> ${escapeHtml(data.routePath)}</div>
-                        <p class="text-gray-400 mt-1 bg-[#151c33] p-2 rounded border border-[#222d46] break-words">${escapeHtml(data.specialNote)}</p>
-                    `;
-                    logList.appendChild(item);
+                    const d = doc.data();
+                    const div = document.createElement('div');
+                    div.className = "bg-[#0b132b] p-3 rounded-lg border border-[#2c3d52] text-left space-y-1 mb-2";
+                    div.innerHTML = `<div class='text-cyan-400 font-bold'>🚢 ${escapeHtml(d.vesselName)}</div><div class='text-gray-300'>📍 경로: ${escapeHtml(d.routePath)}</div><p class='text-gray-400 bg-[#151c33] p-2 rounded mt-1'>${escapeHtml(d.specialNote)}</p>`;
+                    logList.appendChild(div);
                 });
             });
         }
 
-
-        // =========================================================================
-        // 기능 3: GENERATIVE AI 연동 (GOOGLE APPS SCRIPT GATEWAY CALL)
-        // =========================================================================
-        async function fetchAIResponseViaAppsScript(promptText) {
-            if (!APPS_SCRIPT_URL || APPS_SCRIPT_URL === "YOUR_APPS_SCRIPT_WEB_APP_URL") {
-                return "안내 알림: 코드 안의 [APPS_SCRIPT_URL] 주소가 비어있습니다. 1단계에서 배포한 앱스크립트 웹앱 주소를 넣어주세요.";
+        // [인공지능 연동] Google Apps Script 호출 백엔드 처리
+        async function askAIViaProxy(promptText) {
+            if(!APPS_SCRIPT_URL || APPS_SCRIPT_URL.includes("YOUR_APPS_SCRIPT")) {
+                return "코드 내부의 APPS_SCRIPT_URL 주소를 먼저 기입해주세요.";
             }
-
-            // 직접적인 API 키 노출 없이 앱스크립트에 POST 통신 요청
-            const response = await fetch(APPS_SCRIPT_URL, {
+            // 앱스크립트의 doPost를 호출하기 위해 text/plain 타입으로 안전하게 래핑 전송
+            const res = await fetch(APPS_SCRIPT_URL, {
                 method: "POST",
-                headers: {
-                    "Content-Type": "text/plain" // Apps Script CORS 우회를 위해 주로 text/plain 사용
-                },
+                headers: { "Content-Type": "text/plain" },
                 body: JSON.stringify({ prompt: promptText })
             });
-
-            if (!response.ok) throw new Error(`프록시 서버 응답 오류: ${response.status}`);
-            const json = await response.json();
-            
-            if (json.error) throw new Error(json.error);
-            return json.text;
+            const data = await res.json();
+            if(data.error) throw new Error(data.error);
+            return data.text;
         }
 
-        async function handleAiQuery() {
-            const queryText = aiInput.value.trim();
-            if (!queryText) return;
-
-            appendMessage("user", queryText);
+        async function handleChat() {
+            const txt = aiInput.value.trim();
+            if(!txt) return;
+            appendMsg("user", txt);
             aiInput.value = '';
-
-            const loadingId = appendMessage("system-loading", "보안 채널을 통해 일등항해사가 답변을 수신 중입니다...");
+            
+            const loadId = appendMsg("loading", "위성 중계를 통해 선장 AI가 답변을 연산 중입니다...");
             try {
-                const aiResult = await fetchAIResponseViaAppsScript(queryText);
-                document.getElementById(loadingId)?.remove();
-                appendMessage("ai", aiResult);
-            } catch (err) {
-                document.getElementById(loadingId)?.remove();
-                appendMessage("ai", `프록시 통신 에러가 발생했습니다: ${err.message}`);
+                const answer = await askAIViaProxy(txt);
+                document.getElementById(loadId)?.remove();
+                appendMsg("ai", answer);
+            } catch(e) {
+                document.getElementById(loadId)?.remove();
+                appendMsg("ai", "프록시 통신 실패: " + e.message);
             }
         }
 
-        btnSendAi.addEventListener('click', handleAiQuery);
-        aiInput.addEventListener('keypress', (e) => { if(e.key === 'Enter') handleAiQuery(); });
+        btnSendAi.addEventListener('click', handleChat);
+        aiInput.addEventListener('keypress', (e) => { if(e.key === 'Enter') handleChat(); });
 
-
-        // =========================================================================
-        // 기능 4: TTS 기능 활용 (브라우저 내장 WEB SPEECH API)
-        // =========================================================================
-        window.speakText = function(textToSpeak) {
-            if (!('speechSynthesis' in window)) return alert("이 브라우저는 TTS를 지원하지 않습니다.");
-            window.speechSynthesis.cancel(); 
-            
-            const cleanText = textToSpeak.replace(/`+|#+|\*+/g, '');
-            const utterance = new SpeechSynthesisUtterance(cleanText);
-            utterance.lang = "ko-KR";
-            utterance.rate = 1.0; 
-            utterance.pitch = 0.95; 
-            
-            window.speechSynthesis.speak(utterance);
+        // [TTS 기능 활성화] 브라우저 내장 Web Speech API 활용
+        window.speakText = function(text) {
+            if (!('speechSynthesis' in window)) return alert("이 브라우저는 음성을 지원하지 않습니다.");
+            window.speechSynthesis.cancel();
+            const u = new SpeechSynthesisUtterance(text.replace(/`+|#+|\*+/g, ''));
+            u.lang = "ko-KR";
+            u.rate = 1.0;
+            window.speechSynthesis.speak(u);
         };
+        btnStopTts.addEventListener('click', () => window.speechSynthesis.cancel());
 
-        btnStopTts.addEventListener('click', () => {
-            if ('speechSynthesis' in window) window.speechSynthesis.cancel();
-        });
-
-
-        // =========================================================================
-        // 기타 유틸리티 함수
-        // =========================================================================
-        function appendMessage(sender, text) {
-            const msgId = "msg-" + Date.now();
-            const wrapper = document.createElement('div');
-            
-            if (sender === "user") {
-                wrapper.className = "flex justify-end w-full";
-                wrapper.innerHTML = `<div class="bg-cyan-600 text-white rounded-2xl rounded-tr-none p-4 text-sm max-w-[85%] font-medium shadow">${escapeHtml(text).replace(/\n/g, '<br>')}</div>`;
-            } else if (sender === "system-loading") {
-                wrapper.id = msgId;
-                wrapper.className = "flex space-x-3 items-center text-xs text-gray-500 italic";
-                wrapper.innerHTML = `<i class="fa-solid fa-spinner animate-spin text-cyan-400"></i> <span>${text}</span>`;
+        // 메시지 추가 및 보안 처리 헬퍼
+        function appendMsg(sender, text) {
+            const id = "msg-" + Date.now();
+            const d = document.createElement('div');
+            if(sender === "user") {
+                d.className = "flex justify-end";
+                d.innerHTML = `<div class="bg-cyan-600 p-3 rounded-xl rounded-tr-none text-sm max-w-[85%]">${escapeHtml(text)}</div>`;
+            } else if(sender === "loading") {
+                d.id = id; d.className = "text-xs text-gray-500 italic animate-pulse"; d.textContent = text;
             } else {
-                wrapper.className = "flex space-x-3 items-start max-w-[85%]";
-                let formatted = escapeHtml(text).replace(/\n/g, '<br>').replace(/\*\*(.*?)\*\*/g, '<strong class="text-cyan-300 font-bold">$1</strong>');
-                wrapper.innerHTML = `
-                    <div class="w-8 h-8 rounded-full bg-cyan-600 flex items-center justify-center text-white shrink-0"><i class="fa-solid fa-robot text-xs"></i></div>
-                    <div class="bg-[#1c2541] text-gray-100 rounded-2xl rounded-tl-none p-4 text-sm border border-[#3a506b] relative group w-full shadow">
-                        <div>${formatted}</div>
-                        <div class="mt-3 pt-2 border-t border-gray-700 text-[11px] flex justify-between items-center">
-                            <span class="text-gray-500">SeaNav AI 비서</span>
-                            <button onclick="window.speakText(this.getAttribute('data-text'))" data-text="${text.replace(/"/g, '&quot;')}" class="text-cyan-400 hover:underline flex items-center space-x-1 cursor-pointer">
-                                <i class="fa-solid fa-volume-high text-xs"></i> <span>음성 브리핑 듣기 (TTS)</span>
-                            </button>
+                d.className = "flex space-x-2";
+                d.innerHTML = `
+                    <div class="bg-[#1c2541] p-4 rounded-xl rounded-tl-none text-sm border border-[#3a506b] w-full relative">
+                        <p>${escapeHtml(text).replace(/\n/g, '<br>').replace(/\*\*(.*?)\*\*/g, '<b class="text-cyan-300">$1</b>')}</p>
+                        <div class="mt-3 text-[11px] flex justify-between text-gray-500 border-t border-gray-700 pt-2">
+                            <span>SeaNav Captain Bot</span>
+                            <button onclick="window.speakText(this.getAttribute('data-text'))" data-text="${text.replace(/"/g, '&quot;')}" class="text-cyan-400 hover:underline cursor-pointer">📢 TTS 음성 브리핑</button>
                         </div>
                     </div>`;
             }
-            chatScreen.appendChild(wrapper);
+            chatScreen.appendChild(d);
             chatScreen.scrollTop = chatScreen.scrollHeight;
-            return msgId;
+            return id;
         }
-
-        function escapeHtml(str) {
-            return String(str).replace(/[&<>"']/g, m => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;' }[m]));
-        }
+        function escapeHtml(str) { return String(str).replace(/[&<>"']/g, m => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;' }[m])); }
     </script>
 </body>
 </html>
