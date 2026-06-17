@@ -3,7 +3,7 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>SeaNav AI - 선박 항해 플랫폼</title>
+    <title>SeaNav AI - 스마트 항해 플랫폼</title>
     <script src="https://cdn.jsdelivr.net/npm/@tailwindcss/browser@4"></script>
     <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
     <style>body { background-color: #0b132b; color: #f4f5f6; }</style>
@@ -53,18 +53,18 @@
 
         <div class="lg:col-span-2 space-y-6">
             <div class="bg-[#1c2541] rounded-xl p-6 shadow-xl border border-[#3a506b]">
-                <h1 class="text-2xl font-extrabold text-white mb-1">AI 선장 브리핑 시스템</h1>
-                <p class="text-gray-400 text-sm">구글 앱스크립트 보안 게이트웨이를 경유하여 AI 답변을 안전하게 수신합니다.</p>
+                <h1 class="text-2xl font-extrabold text-white mb-1">OpenAI 스마트 오디오 브리핑 시스템</h1>
+                <p class="text-gray-400 text-sm">앱스크립트 백엔드를 경유하여 OpenAI Chat 답변을 구하고, 고품질 스트리밍 TTS 오디오를 생성합니다.</p>
             </div>
 
             <div class="bg-[#1c2541] rounded-xl shadow-xl border border-[#3a506b] flex flex-col h-[500px]">
                 <div class="px-6 py-4 border-b border-[#3a506b] flex justify-between items-center bg-[#151c33] rounded-t-xl">
-                    <span class="text-sm font-semibold text-gray-300">보안 통신 채널 활성화</span>
-                    <button id="btn-stop-tts" class="text-xs text-red-400 border border-red-500/20 px-2 py-1 rounded">음성 중지</button>
+                    <span class="text-sm font-semibold text-gray-300">보안 통신 채널 (GPT-4o-mini & TTS-1)</span>
+                    <button id="btn-stop-audio" class="text-xs text-red-400 border border-red-500/20 px-2 py-1 rounded">오디오 중지</button>
                 </div>
                 <div id="chat-screen" class="flex-1 p-6 overflow-y-auto space-y-4 bg-[#111936]"></div>
                 <div class="p-4 border-t border-[#3a506b] bg-[#151c33] rounded-b-xl flex space-x-2">
-                    <input type="text" id="ai-input" class="flex-1 bg-[#0b132b] border border-[#3a506b] rounded-xl px-4 py-3 text-white text-sm focus:outline-none focus:border-cyan-400" placeholder="선박 관련 질문을 입력하세요...">
+                    <input type="text" id="ai-input" class="flex-1 bg-[#0b132b] border border-[#3a506b] rounded-xl px-4 py-3 text-white text-sm focus:outline-none focus:border-cyan-400" placeholder="선박 운항 지식이나 정비 요령을 물어보세요...">
                     <button id="btn-send-ai" class="bg-cyan-600 text-white px-5 py-3 rounded-xl font-medium transition">전송</button>
                 </div>
             </div>
@@ -77,7 +77,7 @@
         import { getFirestore, collection, addDoc, query, where, orderBy, onSnapshot } from "https://www.gstatic.com/firebasejs/10.8.0/firebase-firestore.js";
 
         // -------------------------------------------------------------------------
-        // [⚠️ 설정] 본인의 Firebase 웹 앱 SDK 구성 요소를 가입 후 입력하세요.
+        // [⚠️ 설정] 본인의 Firebase 웹 앱 SDK 구성을 입력하세요.
         // -------------------------------------------------------------------------
         const firebaseConfig = {
             apiKey: "AIzaSyBLnhtOe0kYSacOhRKoqSbrKknfPFBHg4g",
@@ -89,9 +89,9 @@
         };
 
         // -------------------------------------------------------------------------
-        // [⚠️ 설정] 1단계에서 획득한 Google Apps Script 배포 URL 주소를 붙여넣으세요.
+        // [⚠️ 설정] 본인의 Google Apps Script 배포 URL 주소를 붙여넣으세요.
         // -------------------------------------------------------------------------
-        const APPS_SCRIPT_URL = "https://script.google.com/macros/s/AKfycbzmpyB7IWN6NySZlUNwFcvHhCAAKbqfSGAGr9kCQta6ujA264t0kqgSpcLJaxNzk7H1BA/exec";
+        const APPS_SCRIPT_URL = "https://script.google.com/macros/s/AKfycbzDABL4O9VtkaugYNg2mmWwWt0RWzhAFAtQWq5N4NG5HyLmCafIOHM2IRMfJlL_i_1ltw/exec";
 
         const app = initializeApp(firebaseConfig);
         const auth = getAuth(app);
@@ -99,6 +99,7 @@
 
         let currentUser = null;
         let unsubscribeLogs = null;
+        let currentAudio = null; // 재생 중인 오디오 객체 저장
 
         // DOM 매핑
         const authEmailInput = document.getElementById('auth-email');
@@ -117,7 +118,7 @@
         const aiInput = document.getElementById('ai-input');
         const btnSendAi = document.getElementById('btn-send-ai');
         const chatScreen = document.getElementById('chat-screen');
-        const btnStopTts = document.getElementById('btn-stop-tts');
+        const btnStopAudio = document.getElementById('btn-stop-audio');
 
         // [인증] 상태 변화 체크
         onAuthStateChanged(auth, (user) => {
@@ -183,20 +184,21 @@
             });
         }
 
-        // [인공지능 연동] Google Apps Script 호출 백엔드 처리
-        async function askAIViaProxy(promptText) {
+        // [인공지능 연동] 보내주신 앱스크립트 규격에 딱 맞춰 요청을 보냅니다.
+        async function askAIViaProxy(type, payloadData) {
             if(!APPS_SCRIPT_URL || APPS_SCRIPT_URL.includes("YOUR_APPS_SCRIPT")) {
-                return "코드 내부의 APPS_SCRIPT_URL 주소를 먼저 기입해주세요.";
+                return { error: "코드가 요구하는 백엔드 URL 주소가 비어있습니다." };
             }
-            // 앱스크립트의 doPost를 호출하기 위해 text/plain 타입으로 안전하게 래핑 전송
+            
+            // 앱스크립트 규격 스펙 적용 (type지정 및 본문 병합)
+            const bodyPayload = { type: type, ...payloadData };
+
             const res = await fetch(APPS_SCRIPT_URL, {
                 method: "POST",
                 headers: { "Content-Type": "text/plain" },
-                body: JSON.stringify({ prompt: promptText })
+                body: JSON.stringify(bodyPayload)
             });
-            const data = await res.json();
-            if(data.error) throw new Error(data.error);
-            return data.text;
+            return await res.json();
         }
 
         async function handleChat() {
@@ -205,32 +207,57 @@
             appendMsg("user", txt);
             aiInput.value = '';
             
-            const loadId = appendMsg("loading", "위성 중계를 통해 선장 AI가 답변을 연산 중입니다...");
+            const loadId = appendMsg("loading", "보안 프록시 채널을 통해 GPT 답변을 수신하는 중...");
             try {
-                const answer = await askAIViaProxy(txt);
+                // 1단계: Chat 요청 (앱스크립트 handleChat 작동)
+                const chatRes = await askAIViaProxy("chat", { question: txt });
                 document.getElementById(loadId)?.remove();
-                appendMsg("ai", answer);
+
+                if(chatRes.error) {
+                    appendMsg("ai", "서버 오류: " + chatRes.error);
+                    return;
+                }
+
+                appendMsg("ai", chatRes.answer);
             } catch(e) {
                 document.getElementById(loadId)?.remove();
-                appendMsg("ai", "프록시 통신 실패: " + e.message);
+                appendMsg("ai", "네트워크 통신 실패: " + e.message);
             }
         }
 
+        // 2단계: OpenAI TTS 오디오 데이터 요청 처리 (앱스크립트 handleTTS 작동)
+        window.requestAndPlayTTS = async function(textToSpeak, btnElement) {
+            if(currentAudio) { currentAudio.pause(); }
+            
+            const originalText = btnElement.innerHTML;
+            btnElement.innerHTML = "<i class='fa-solid fa-spinner animate-spin'></i> 음성 생성 중...";
+            btnElement.disabled = true;
+
+            try {
+                // 앱스크립트가 제공한 Base64 오디오 바이너리 추출
+                const ttsRes = await askAIViaProxy("tts", { text: textToSpeak, voice: "alloy" });
+                
+                if(ttsRes.error) {
+                    alert("TTS 생성 에러: " + ttsRes.error);
+                } else if(ttsRes.audioBase64) {
+                    // Base64를 프론트엔드 오디오 객체로 디코딩 변환하여 플레이
+                    const audioUrl = "data:audio/mp3;base64," + ttsRes.audioBase64;
+                    currentAudio = new Audio(audioUrl);
+                    currentAudio.play();
+                }
+            } catch(err) {
+                alert("음성 로딩 실패: " + err.message);
+            } finally {
+                btnElement.innerHTML = originalText;
+                btnElement.disabled = false;
+            }
+        };
+
         btnSendAi.addEventListener('click', handleChat);
         aiInput.addEventListener('keypress', (e) => { if(e.key === 'Enter') handleChat(); });
+        btnStopAudio.addEventListener('click', () => { if(currentAudio) currentAudio.pause(); });
 
-        // [TTS 기능 활성화] 브라우저 내장 Web Speech API 활용
-        window.speakText = function(text) {
-            if (!('speechSynthesis' in window)) return alert("이 브라우저는 음성을 지원하지 않습니다.");
-            window.speechSynthesis.cancel();
-            const u = new SpeechSynthesisUtterance(text.replace(/`+|#+|\*+/g, ''));
-            u.lang = "ko-KR";
-            u.rate = 1.0;
-            window.speechSynthesis.speak(u);
-        };
-        btnStopTts.addEventListener('click', () => window.speechSynthesis.cancel());
-
-        // 메시지 추가 및 보안 처리 헬퍼
+        // 메시지 화면 출력 유틸
         function appendMsg(sender, text) {
             const id = "msg-" + Date.now();
             const d = document.createElement('div');
@@ -238,15 +265,20 @@
                 d.className = "flex justify-end";
                 d.innerHTML = `<div class="bg-cyan-600 p-3 rounded-xl rounded-tr-none text-sm max-w-[85%]">${escapeHtml(text)}</div>`;
             } else if(sender === "loading") {
-                d.id = id; d.className = "text-xs text-gray-500 italic animate-pulse"; d.textContent = text;
+                d.id = id; d.className = "text-xs text-gray-500 italic animate-pulse flex items-center gap-1"; 
+                d.innerHTML = `<i class="fa-solid fa-spinner animate-spin text-cyan-400"></i> ${text}`;
             } else {
                 d.className = "flex space-x-2";
+                // 스크립트 특성상 큰따옴표 이스케이프 우회 처리
+                const cleanTextForAttribute = text.replace(/"/g, '&quot;').replace(/\n/g, ' ');
                 d.innerHTML = `
-                    <div class="bg-[#1c2541] p-4 rounded-xl rounded-tl-none text-sm border border-[#3a506b] w-full relative">
+                    <div class="bg-[#1c2541] p-4 rounded-xl rounded-tl-none text-sm border border-[#3a506b] w-full relative shadow">
                         <p>${escapeHtml(text).replace(/\n/g, '<br>').replace(/\*\*(.*?)\*\*/g, '<b class="text-cyan-300">$1</b>')}</p>
                         <div class="mt-3 text-[11px] flex justify-between text-gray-500 border-t border-gray-700 pt-2">
-                            <span>SeaNav Captain Bot</span>
-                            <button onclick="window.speakText(this.getAttribute('data-text'))" data-text="${text.replace(/"/g, '&quot;')}" class="text-cyan-400 hover:underline cursor-pointer">📢 TTS 음성 브리핑</button>
+                            <span>SeaNav GPT Assistant</span>
+                            <button onclick="window.requestAndPlayTTS(this.getAttribute('data-text'), this)" data-text="${cleanTextForAttribute}" class="text-cyan-400 hover:underline cursor-pointer flex items-center gap-1 font-medium">
+                                <i class="fa-solid fa-volume-high"></i> OpenAI Real TTS 브리핑 듣기
+                            </button>
                         </div>
                     </div>`;
             }
