@@ -54,17 +54,17 @@
         <div class="lg:col-span-2 space-y-6">
             <div class="bg-[#1c2541] rounded-xl p-6 shadow-xl border border-[#3a506b]">
                 <h1 class="text-2xl font-extrabold text-white mb-1">OpenAI 스마트 오디오 브리핑 시스템</h1>
-                <p class="text-gray-400 text-sm">앱스크립트 백엔드를 경유하여 OpenAI Chat 답변을 구하고, 고품질 스트리밍 TTS 오디오를 생성합니다.</p>
+                <p class="text-gray-400 text-sm">구글 앱스크립트 게이트웨이를 경유해 GPT-4o-mini 답변을 구하고 OpenAI 정품 TTS 음성을 가져옵니다.</p>
             </div>
 
             <div class="bg-[#1c2541] rounded-xl shadow-xl border border-[#3a506b] flex flex-col h-[500px]">
                 <div class="px-6 py-4 border-b border-[#3a506b] flex justify-between items-center bg-[#151c33] rounded-t-xl">
-                    <span class="text-sm font-semibold text-gray-300">보안 통신 채널 (GPT-4o-mini & TTS-1)</span>
-                    <button id="btn-stop-audio" class="text-xs text-red-400 border border-red-500/20 px-2 py-1 rounded">오디오 중지</button>
+                    <span class="text-sm font-semibold text-gray-300">보안 게이트웨이 활성화 상태</span>
+                    <button id="btn-stop-audio" class="text-xs text-red-400 border border-red-500/20 px-2 py-1 rounded">음성 재생 중지</button>
                 </div>
                 <div id="chat-screen" class="flex-1 p-6 overflow-y-auto space-y-4 bg-[#111936]"></div>
                 <div class="p-4 border-t border-[#3a506b] bg-[#151c33] rounded-b-xl flex space-x-2">
-                    <input type="text" id="ai-input" class="flex-1 bg-[#0b132b] border border-[#3a506b] rounded-xl px-4 py-3 text-white text-sm focus:outline-none focus:border-cyan-400" placeholder="선박 운항 지식이나 정비 요령을 물어보세요...">
+                    <input type="text" id="ai-input" class="flex-1 bg-[#0b132b] border border-[#3a506b] rounded-xl px-4 py-3 text-white text-sm focus:outline-none focus:border-cyan-400" placeholder="선박 지식, 해사 지식에 대해 물어보세요...">
                     <button id="btn-send-ai" class="bg-cyan-600 text-white px-5 py-3 rounded-xl font-medium transition">전송</button>
                 </div>
             </div>
@@ -77,21 +77,24 @@
         import { getFirestore, collection, addDoc, query, where, orderBy, onSnapshot } from "https://www.gstatic.com/firebasejs/10.8.0/firebase-firestore.js";
 
         // -------------------------------------------------------------------------
-        // [⚠️ 설정] 본인의 Firebase 웹 앱 SDK 구성을 입력하세요.
+        // [수정 완료] 제공해주신 파이어베이스 설정을 정상 등록했습니다.
         // -------------------------------------------------------------------------
         const firebaseConfig = {
             apiKey: "AIzaSyBLnhtOe0kYSacOhRKoqSbrKknfPFBHg4g",
             authDomain: "letsgokorea-43820.firebaseapp.com",
+            databaseURL: "https://letsgokorea-43820-default-rtdb.firebaseio.com",
             projectId: "letsgokorea-43820",
             storageBucket: "letsgokorea-43820.firebasestorage.app",
             messagingSenderId: "580360073929",
-            appId: "1:580360073929:web:9778764f05a49428771318"
+            appId: "1:580360073929:web:9778764f05a49428771318",
+            measurementId: "G-9FDDGEVLQ7"
         };
 
         // -------------------------------------------------------------------------
-        // [⚠️ 설정] 본인의 Google Apps Script 배포 URL 주소를 붙여넣으세요.
+        // [⚠️ 필수 설정] 본인의 구글 앱스크립트 웹앱 배포 URL 주소를 아래에 붙여넣으세요!
+        // 주소 끝이 반드시 /exec 로 끝나야 정상 작동합니다.
         // -------------------------------------------------------------------------
-        const APPS_SCRIPT_URL = "https://script.google.com/macros/s/AKfycbzMAmKFjeHn7HJBAJthKEjUuOa1dmbaIIQlry75HEomrNaojTzSfT4bc6VInFeXiM-vug/exec";
+        const APPS_SCRIPT_URL = "https://script.google.com/macros/s/AKfycbw1dWE5xUykZHY7JDBvMDNAai2j8frFc-J7EgvgigRthc3oUVdxsRyxXn7sAkyXz2RIBQ/exec";
 
         const app = initializeApp(firebaseConfig);
         const auth = getAuth(app);
@@ -99,9 +102,9 @@
 
         let currentUser = null;
         let unsubscribeLogs = null;
-        let currentAudio = null; // 재생 중인 오디오 객체 저장
+        let currentAudio = null;
 
-        // DOM 매핑
+        // DOM 요소 가져오기
         const authEmailInput = document.getElementById('auth-email');
         const authPasswordInput = document.getElementById('auth-password');
         const btnLogin = document.getElementById('btn-login');
@@ -120,7 +123,7 @@
         const chatScreen = document.getElementById('chat-screen');
         const btnStopAudio = document.getElementById('btn-stop-audio');
 
-        // [인증] 상태 변화 체크
+        // 로그인 상태 확인 리스너
         onAuthStateChanged(auth, (user) => {
             if (user) {
                 currentUser = user;
@@ -139,22 +142,25 @@
             }
         });
 
+        // 회원가입 버튼
         btnSignup.addEventListener('click', async () => {
             try {
                 await createUserWithEmailAndPassword(auth, authEmailInput.value.trim(), authPasswordInput.value.trim());
-                alert('계정 생성 완료!');
+                alert('회원가입이 완료되었습니다!');
             } catch(e) { alert(e.message); }
         });
 
+        // 로그인 버튼
         btnLogin.addEventListener('click', async () => {
             try {
                 await signInWithEmailAndPassword(auth, authEmailInput.value.trim(), authPasswordInput.value.trim());
             } catch(e) { alert(e.message); }
         });
 
+        // 로그아웃 버튼
         btnLogout.addEventListener('click', () => signOut(auth));
 
-        // [데이터] 저장 및 실시간 리스너
+        // 항해 일지 저장
         btnSaveLog.addEventListener('click', async () => {
             if(!currentUser) return alert('로그인이 필요합니다.');
             try {
@@ -169,11 +175,12 @@
             } catch(e) { alert(e.message); }
         });
 
+        // 일지 실시간 동기화 가져오기
         function listenToVoyageLogs(userId) {
             const q = query(collection(db, "voyage_logs"), where("userId", "==", userId), orderBy("createdAt", "desc"));
             unsubscribeLogs = onSnapshot(q, (snapshot) => {
                 logList.innerHTML = '';
-                if(snapshot.empty) return logList.innerHTML = "기록이 없습니다.";
+                if(snapshot.empty) return logList.innerHTML = "기록된 항해 일지가 없습니다.";
                 snapshot.forEach((doc) => {
                     const d = doc.data();
                     const div = document.createElement('div');
@@ -184,13 +191,12 @@
             });
         }
 
-        // [인공지능 연동] 보내주신 앱스크립트 규격에 딱 맞춰 요청을 보냅니다.
-        async function askAIViaProxy(type, payloadData) {
-            if(!APPS_SCRIPT_URL || APPS_SCRIPT_URL.includes("YOUR_APPS_SCRIPT")) {
-                return { error: "코드가 요구하는 백엔드 URL 주소가 비어있습니다." };
+        // 앱스크립트 프록시 통신용 함수 (CORS 우회를 위해 text/plain 규격 사용)
+        async function callAppsScriptProxy(type, payloadData) {
+            if(!APPS_SCRIPT_URL || APPS_SCRIPT_URL.includes("여기에_앱스크립트")) {
+                return { error: "소스코드 상단에 APPS_SCRIPT_URL 주소를 먼저 입력해 주세요." };
             }
             
-            // 앱스크립트 규격 스펙 적용 (type지정 및 본문 병합)
             const bodyPayload = { type: type, ...payloadData };
 
             const res = await fetch(APPS_SCRIPT_URL, {
@@ -201,52 +207,50 @@
             return await res.json();
         }
 
+        // AI 채팅 전송 핸들러
         async function handleChat() {
             const txt = aiInput.value.trim();
             if(!txt) return;
             appendMsg("user", txt);
             aiInput.value = '';
             
-            const loadId = appendMsg("loading", "보안 프록시 채널을 통해 GPT 답변을 수신하는 중...");
+            const loadId = appendMsg("loading", "보안 채널을 통해 GPT 선장님의 무선 답변을 연산 중입니다...");
             try {
-                // 1단계: Chat 요청 (앱스크립트 handleChat 작동)
-                const chatRes = await askAIViaProxy("chat", { question: txt });
+                const chatRes = await callAppsScriptProxy("chat", { question: txt });
                 document.getElementById(loadId)?.remove();
 
                 if(chatRes.error) {
-                    appendMsg("ai", "서버 오류: " + chatRes.error);
+                    appendMsg("ai", "서버 에러 발생: " + chatRes.error);
                     return;
                 }
 
                 appendMsg("ai", chatRes.answer);
             } catch(e) {
                 document.getElementById(loadId)?.remove();
-                appendMsg("ai", "네트워크 통신 실패: " + e.message);
+                appendMsg("ai", "네트워크 통신 오류가 발생했습니다: " + e.message);
             }
         }
 
-        // 2단계: OpenAI TTS 오디오 데이터 요청 처리 (앱스크립트 handleTTS 작동)
+        // OpenAI 정품 고품질 TTS 오디오 스트리밍 핸들러
         window.requestAndPlayTTS = async function(textToSpeak, btnElement) {
             if(currentAudio) { currentAudio.pause(); }
             
             const originalText = btnElement.innerHTML;
-            btnElement.innerHTML = "<i class='fa-solid fa-spinner animate-spin'></i> 음성 생성 중...";
+            btnElement.innerHTML = "<i class='fa-solid fa-spinner animate-spin'></i> 음성 변환 중...";
             btnElement.disabled = true;
 
             try {
-                // 앱스크립트가 제공한 Base64 오디오 바이너리 추출
-                const ttsRes = await askAIViaProxy("tts", { text: textToSpeak, voice: "alloy" });
+                const ttsRes = await callAppsScriptProxy("tts", { text: textToSpeak });
                 
                 if(ttsRes.error) {
-                    alert("TTS 생성 에러: " + ttsRes.error);
+                    alert("TTS 생성 실패: " + ttsRes.error);
                 } else if(ttsRes.audioBase64) {
-                    // Base64를 프론트엔드 오디오 객체로 디코딩 변환하여 플레이
                     const audioUrl = "data:audio/mp3;base64," + ttsRes.audioBase64;
                     currentAudio = new Audio(audioUrl);
                     currentAudio.play();
                 }
             } catch(err) {
-                alert("음성 로딩 실패: " + err.message);
+                alert("오디오 로딩 오류: " + err.message);
             } finally {
                 btnElement.innerHTML = originalText;
                 btnElement.disabled = false;
@@ -257,7 +261,7 @@
         aiInput.addEventListener('keypress', (e) => { if(e.key === 'Enter') handleChat(); });
         btnStopAudio.addEventListener('click', () => { if(currentAudio) currentAudio.pause(); });
 
-        // 메시지 화면 출력 유틸
+        // 화면에 메시지 말풍선 출력 유틸 함수
         function appendMsg(sender, text) {
             const id = "msg-" + Date.now();
             const d = document.createElement('div');
@@ -269,13 +273,12 @@
                 d.innerHTML = `<i class="fa-solid fa-spinner animate-spin text-cyan-400"></i> ${text}`;
             } else {
                 d.className = "flex space-x-2";
-                // 스크립트 특성상 큰따옴표 이스케이프 우회 처리
                 const cleanTextForAttribute = text.replace(/"/g, '&quot;').replace(/\n/g, ' ');
                 d.innerHTML = `
                     <div class="bg-[#1c2541] p-4 rounded-xl rounded-tl-none text-sm border border-[#3a506b] w-full relative shadow">
                         <p>${escapeHtml(text).replace(/\n/g, '<br>').replace(/\*\*(.*?)\*\*/g, '<b class="text-cyan-300">$1</b>')}</p>
                         <div class="mt-3 text-[11px] flex justify-between text-gray-500 border-t border-gray-700 pt-2">
-                            <span>SeaNav GPT Assistant</span>
+                            <span>SeaNav Captain GPT</span>
                             <button onclick="window.requestAndPlayTTS(this.getAttribute('data-text'), this)" data-text="${cleanTextForAttribute}" class="text-cyan-400 hover:underline cursor-pointer flex items-center gap-1 font-medium">
                                 <i class="fa-solid fa-volume-high"></i> OpenAI Real TTS 브리핑 듣기
                             </button>
@@ -286,6 +289,7 @@
             chatScreen.scrollTop = chatScreen.scrollHeight;
             return id;
         }
+
         function escapeHtml(str) { return String(str).replace(/[&<>"']/g, m => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;' }[m])); }
     </script>
 </body>
