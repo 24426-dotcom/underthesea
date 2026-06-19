@@ -38,7 +38,7 @@
             </div>
 
             <div class="bg-[#1c2541] rounded-xl p-6 shadow-xl border border-[#3a506b]">
-                <h2 class="text-lg font-semibold mb-4 text-cyan-300 flex items-center"><i class="fa-solid fa-book-atlas mr-2"></i> 선박 항해 일지 (Firestore)</h2>
+                <h2 class="text-lg font-semibold mb-4 text-cyan-300 flex items-center"><i class="fa-solid fa-database mr-2"></i> 선박 항해 일지 (RTDB)</h2>
                 <div class="space-y-3 mb-6">
                     <input type="text" id="log-vessel" class="w-full bg-[#0b132b] border border-[#3a506b] rounded-lg px-3 py-2 text-white text-sm focus:outline-none focus:border-cyan-400" placeholder="선박명">
                     <input type="text" id="log-route" class="w-full bg-[#0b132b] border border-[#3a506b] rounded-lg px-3 py-2 text-white text-sm focus:outline-none focus:border-cyan-400" placeholder="운항 경로">
@@ -74,11 +74,10 @@
     <script type="module">
         import { initializeApp } from "https://www.gstatic.com/firebasejs/10.8.0/firebase-app.js";
         import { getAuth, createUserWithEmailAndPassword, signInWithEmailAndPassword, signOut, onAuthStateChanged } from "https://www.gstatic.com/firebasejs/10.8.0/firebase-auth.js";
-        import { getFirestore, collection, addDoc, query, where, orderBy, onSnapshot } from "https://www.gstatic.com/firebasejs/10.8.0/firebase-firestore.js";
+        // 📌 Firestore 대신 Realtime Database 모듈을 로드하도록 수정했습니다.
+        import { getDatabase, ref, push, onValue } from "https://www.gstatic.com/firebasejs/10.8.0/firebase-database.js";
 
-        // -------------------------------------------------------------------------
-        // [수정 완료] 제공해주신 파이어베이스 설정을 정상 등록했습니다.
-        // -------------------------------------------------------------------------
+        // 파이어베이스 설정 적용 완료
         const firebaseConfig = {
             apiKey: "AIzaSyBLnhtOe0kYSacOhRKoqSbrKknfPFBHg4g",
             authDomain: "letsgokorea-43820.firebaseapp.com",
@@ -94,14 +93,13 @@
         // [⚠️ 필수 설정] 본인의 구글 앱스크립트 웹앱 배포 URL 주소를 아래에 붙여넣으세요!
         // 주소 끝이 반드시 /exec 로 끝나야 정상 작동합니다.
         // -------------------------------------------------------------------------
-        const APPS_SCRIPT_URL = "https://script.google.com/macros/s/AKfycbw1dWE5xUykZHY7JDBvMDNAai2j8frFc-J7EgvgigRthc3oUVdxsRyxXn7sAkyXz2RIBQ/exec";
+        const APPS_SCRIPT_URL = "https://script.google.com/macros/s/AKfycby_9lvKAlStk8YJ3OWfOUG6pGvAU_xENfom29w8QfatoDKByseUUYNaalCwyUr1VXB-vA/exec";
 
         const app = initializeApp(firebaseConfig);
         const auth = getAuth(app);
-        const db = getFirestore(app);
+        const db = getDatabase(app); // Realtime Database 초기화
 
         let currentUser = null;
-        let unsubscribeLogs = null;
         let currentAudio = null;
 
         // DOM 요소 가져오기
@@ -131,13 +129,12 @@
                 loggedInContainer.classList.remove('hidden');
                 btnLogout.classList.remove('hidden');
                 currentUserEmailText.textContent = user.email;
-                listenToVoyageLogs(user.uid);
+                listenToVoyageLogs(); // 데이터 실시간 동기화 호출
             } else {
                 currentUser = null;
                 loginFormContainer.classList.remove('hidden');
                 loggedInContainer.classList.add('hidden');
                 btnLogout.classList.add('hidden');
-                if (unsubscribeLogs) { unsubscribeLogs(); unsubscribeLogs = null; }
                 logList.innerHTML = "로그인 후 조회 가능합니다.";
             }
         });
@@ -160,38 +157,62 @@
         // 로그아웃 버튼
         btnLogout.addEventListener('click', () => signOut(auth));
 
-        // 항해 일지 저장
+        // 📌 [수정] 리얼타임 데이터베이스 전용 저장 방식 적용
         btnSaveLog.addEventListener('click', async () => {
             if(!currentUser) return alert('로그인이 필요합니다.');
+            if(!logVessel.value.trim()) return alert('선박명을 입력하세요.');
+            
             try {
-                await addDoc(collection(db, "voyage_logs"), {
+                // 'voyage_logs' 노드에 push()로 자동 키 생성 후 저장
+                const logsRef = ref(db, 'voyage_logs');
+                await push(logsRef, {
                     userId: currentUser.uid,
+                    userEmail: currentUser.email,
                     vesselName: logVessel.value.trim(),
                     routePath: logRoute.value.trim(),
                     specialNote: logNote.value.trim(),
                     createdAt: Date.now()
                 });
                 logVessel.value = ''; logRoute.value = ''; logNote.value = '';
-            } catch(e) { alert(e.message); }
+                alert('리얼타임 데이터베이스에 기록되었습니다!');
+            } catch(e) { alert("DB 저장 실패: " + e.message); }
         });
 
-        // 일지 실시간 동기화 가져오기
-        function listenToVoyageLogs(userId) {
-            const q = query(collection(db, "voyage_logs"), where("userId", "==", userId), orderBy("createdAt", "desc"));
-            unsubscribeLogs = onSnapshot(q, (snapshot) => {
+        // 📌 [수정] 리얼타임 데이터베이스 전용 실시간 리스너 수신 방식 적용
+        function listenToVoyageLogs() {
+            const logsRef = ref(db, 'voyage_logs');
+            onValue(logsRef, (snapshot) => {
                 logList.innerHTML = '';
-                if(snapshot.empty) return logList.innerHTML = "기록된 항해 일지가 없습니다.";
-                snapshot.forEach((doc) => {
-                    const d = doc.data();
-                    const div = document.createElement('div');
-                    div.className = "bg-[#0b132b] p-3 rounded-lg border border-[#2c3d52] text-left space-y-1 mb-2";
-                    div.innerHTML = `<div class='text-cyan-400 font-bold'>🚢 ${escapeHtml(d.vesselName)}</div><div class='text-gray-300'>📍 경로: ${escapeHtml(d.routePath)}</div><p class='text-gray-400 bg-[#151c33] p-2 rounded mt-1'>${escapeHtml(d.specialNote)}</p>`;
-                    logList.appendChild(div);
+                if (!snapshot.exists()) {
+                    logList.innerHTML = "기록된 항해 일지가 없습니다.";
+                    return;
+                }
+                
+                const data = snapshot.val();
+                // 최신순 정렬을 위해 배열화
+                const logArray = [];
+                for (let key in data) {
+                    logArray.push(data[key]);
+                }
+                logArray.sort((a, b) => b.createdAt - a.createdAt);
+
+                logArray.forEach((d) => {
+                    // 보안상 내가 쓴 로그만 필터링하여 출력
+                    if (d.userId === currentUser.uid) {
+                        const div = document.createElement('div');
+                        div.className = "bg-[#0b132b] p-3 rounded-lg border border-[#2c3d52] text-left space-y-1 mb-2";
+                        div.innerHTML = `<div class='text-cyan-400 font-bold'>🚢 ${escapeHtml(d.vesselName)}</div><div class='text-gray-300'>📍 경로: ${escapeHtml(d.routePath)}</div><p class='text-gray-400 bg-[#151c33] p-2 rounded mt-1'>${escapeHtml(d.specialNote)}</p>`;
+                        logList.appendChild(div);
+                    }
                 });
+
+                if(logList.innerHTML === '') {
+                    logList.innerHTML = "기록된 항해 일지가 없습니다.";
+                }
             });
         }
 
-        // 앱스크립트 프록시 통신용 함수 (CORS 우회를 위해 text/plain 규격 사용)
+        // 앱스크립트 프록시 통신용 함수
         async function callAppsScriptProxy(type, payloadData) {
             if(!APPS_SCRIPT_URL || APPS_SCRIPT_URL.includes("여기에_앱스크립트")) {
                 return { error: "소스코드 상단에 APPS_SCRIPT_URL 주소를 먼저 입력해 주세요." };
